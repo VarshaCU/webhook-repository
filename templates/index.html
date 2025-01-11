@@ -13,8 +13,18 @@
         <li>
             <strong>{{ event.author }}</strong>
             {{ event.event_type }}
-            from {{ event.from_branch }} to {{ event.to_branch }}
-            on {{ event.timestamp }}
+            {% if event.event_type == 'pull_request' %}
+                {% if event.merge %}
+                    - <strong>Merged</strong>
+                {% else %}
+                    - Status: {{ event.status }}
+                {% endif %}
+                from <strong>{{ event.from_branch }}</strong>
+                to <strong>{{ event.to_branch }}</strong>
+            {% elif event.event_type == 'push' %}
+                - Pushed to <strong>{{ event.ref }}</strong> branch by <strong>{{ event.pusher }}</strong>
+            {% endif %}
+            on <strong>{{ event.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</strong>
         </li>
         {% endfor %}
     </ul>
