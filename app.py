@@ -9,6 +9,7 @@ client = MongoClient("mongodb://localhost:27017/")
 db = client["github_events"]
 collection = db["events"]
 
+
 # Webhook endpoint
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -23,6 +24,9 @@ def webhook():
         "timestamp": timestamp,
     }
 
+    # Print the received data for debugging
+    print("Received payload:", data)
+
     # Handle pull_request events
     if event_type == "pull_request":
         event["from_branch"] = data.get("pull_request", {}).get("head", {}).get("ref", "")
@@ -34,18 +38,25 @@ def webhook():
         event["ref"] = data.get("ref", "")  # The ref (branch) for the push event
         event["pusher"] = data.get("pusher", {}).get("name", "")  # Who pushed the changes
 
+    # Print the event data for debugging
+    print(f"Processed event: {event}")
+
     try:
         # Insert the event into MongoDB
         collection.insert_one(event)
+        print("Event successfully inserted into MongoDB.")
         return jsonify({"status": "success"}), 200
     except Exception as e:
+        print(f"Error inserting event into MongoDB: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
 
 # UI endpoint
 @app.route('/')
 def index():
     events = collection.find().sort("timestamp", -1).limit(10)
     return render_template("index.html", events=events)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
