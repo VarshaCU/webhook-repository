@@ -16,16 +16,36 @@ def webhook():
     event_type = request.headers.get('X-GitHub-Event', 'ping')
     timestamp = datetime.utcnow()
 
-    # Parse event data
+    # Initialize event data structure
     event = {
         "author": data.get("sender", {}).get("login", "Unknown"),
         "event_type": event_type,
-        "from_branch": data.get("pull_request", {}).get("head", {}).get("ref", ""),
-        "to_branch": data.get("pull_request", {}).get("base", {}).get("ref", ""),
         "timestamp": timestamp,
     }
-    collection.insert_one(event)
-    return jsonify({"status": "success"}), 200
+
+    # Handle pull_request events
+    if event_type == "pull_request":
+        event["from_branch"] = data.get("pull_request", {}).get("head", {}).get("ref", "")
+        event["to_branch"] = data.get("pull_request", {}).get("base", {}).get("ref", "")
+        event["action"] = data.get("action", "")  # added action (opened, closed, etc.)
+
+    # Handle push events
+    elif event_type == "push":
+        event["ref"] = data.get("ref", "")  # The ref (branch) for the push event
+        event["commits"] = data.get("commits", [])  # List of commits for the push
+
+    # Handle merge events
+    elif event_type == "merge":
+        # Merge events might not always have the same structure depending on the payload
+        event["merged"] = data.get("merged", False)
+        event["merge_ref"] = data.get("merge_ref", "")
+
+    try:
+        # Insert the event into MongoDB
+        collection.insert_one(event)
+        return jsonify({"status": "success"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 # UI endpoint
 @app.route('/')
